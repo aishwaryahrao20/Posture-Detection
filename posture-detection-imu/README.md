@@ -13,7 +13,7 @@ The project was developed in two phases: an offline classification pipeline (Pha
 ## System Overview
 
 ```
-┌──────────────────────┐      Serial / USB       ┌──────────────────────────┐
+┌──────────────────────┐      Serial / USB        ┌──────────────────────────┐
 │  Arduino Nano 33 BLE │ ◄──────────────────────► │   Python Base Station    │
 │  Sense Rev2          │                          │                          │
 │                      │   Phase 1: raw CSV log   │   • Serial logger        │
