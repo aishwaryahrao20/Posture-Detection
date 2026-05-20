@@ -1,0 +1,4 @@
+activation,val_acc,test_acc
+sigmoid,1.0,1.0
+tanh,1.0,1.0
+relu,1.0,1.0

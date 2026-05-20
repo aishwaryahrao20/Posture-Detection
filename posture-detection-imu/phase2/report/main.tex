@@ -1,0 +1,196 @@
+\documentclass[12pt]{article}
+
+\usepackage{times}
+\usepackage{geometry}
+\usepackage{setspace}
+\usepackage{hyperref}
+\usepackage{titlesec}
+\usepackage{amsmath}
+\usepackage{enumitem}
+
+\geometry{margin=1in}
+\setstretch{1.15}
+
+\titleformat{\section}{\large\bfseries}{\thesection.}{8pt}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection.}{6pt}{}
+\titleformat{\subsubsection}{\normalsize\itshape}{\thesubsubsection}{6pt}{}
+
+\begin{document}
+
+\begin{center}
+    {\Large\bfseries Embedded Sensor-Agnostic Posture Detection System: Comprehensive Academic Report}\\[10pt]
+    {\large Aishwarya Hareesh Rao}\\
+    Arizona State University
+\end{center}
+
+\vspace{0.7cm}
+
+% ----------------------------------------------------
+\section*{A. System Design}
+% ----------------------------------------------------
+
+\subsection*{Motivation}
+The motivation for this work is rooted in the growing demand for passive, reliable posture monitoring systems. Such technology benefits healthcare (fall detection, patient activity), sports performance, and ergonomic research. Traditional wearable systems often rely on single sensor modality and are sensitive to orientation, limiting their applicability. This project aims to overcome these limitations:
+\begin{itemize}
+    \item Create a sensor-agnostic system, supporting accelerometer, gyroscope, and magnetometer.
+    \item Ensure robustness to sensor placement (orientation independence).
+    \item Deploy a compact neural network model that can run in real time on microcontrollers.
+\end{itemize}
+
+\subsection*{Design Process}
+The system is divided into two primary modules:
+\begin{itemize}
+    \item \textbf{Microcontroller firmware}: Responsible for collecting raw IMU data, performing windowing and normalization, executing model inference, and communicating with the base station.
+    \item \textbf{Base Station App}: Enables sensor selection and inference commands, receives predicted labels and probabilities from the microcontroller, and displays results.
+\end{itemize}
+
+\subsubsection*{Sampling Frequency and Signal Windowing}
+\begin{itemize}
+    \item Sampling frequency: 50\,Hz.
+    \item Window size: 100 samples (2-second window).
+\end{itemize}
+This choice aligns with human posture transition characteristics and ensures a balance between reactivity and stability
+
+\subsubsection*{Model Deployment}
+Models are exported from Keras in TensorFlow Lite format and mapped to microcontroller memory, with a fixed tensor arena (32--48\,KB).
+
+\subsubsection*{Challenges and Observations}
+\begin{itemize}
+    \item Designing compact yet expressive models suitable for microcontroller constraints.
+    \item Handling real-life ambiguity and posture transitions (critical for the ``unknown'' class).
+    \item Ensuring highly optimized firmware without dynamic memory allocation.
+\end{itemize}
+
+% ----------------------------------------------------
+\section*{B. Experiment}
+% ----------------------------------------------------
+
+\subsection*{Data Collection Strategy}
+Experiments were designed to mimic real-world usage while maximizing data diversity. For each posture class (supine, prone, side, sitting, unknown), trials were performed:
+
+\begin{itemize}
+    \item Sensor attached to the chest with varying orientations (USB up/down/rotated).
+    \item ``Side'' included both left and right orientations.
+    \item ``Unknown'' class included transitional movements, standing, walking, and sensor manipulation.
+\end{itemize}
+
+\subsection*{Annotation and Data Storage}
+\begin{itemize}
+    \item Each session saved in CSV format.
+    \item Columns include: time, ax/ay/az, gx/gy/gz, mx/my/mz.
+    \item Posture labels inferred from filenames using automated scripts.
+\end{itemize}
+
+\subsection*{Experiment Environment}
+Data was collected in:
+\begin{itemize}
+    \item Laboratory setting (floor, mat)
+    \item Bed and chair
+    \item Scenarios with sensor rotations and misplacements
+\end{itemize}
+
+\subsection*{Windowing and Dataset Creation}
+\begin{itemize}
+    \item Sliding windows with 50\% overlap.
+    \item Windows too short for annotation discarded.
+    \item Separate datasets created per sensor modality.
+\end{itemize}
+
+% ----------------------------------------------------
+\section*{C. Algorithm}
+% ----------------------------------------------------
+
+\subsection*{Neural Network Architecture}
+The neural network architecture is designed to be lightweight and TFLite Micro compatible:
+\begin{itemize}
+    \item Input: (100, 3)
+    \item Conv1D (16 filters, kernel size 5, ReLU)
+    \item Conv1D (32 filters, kernel size 5, ReLU)
+    \item GlobalAveragePooling1D
+    \item Dense(32, ReLU)
+    \item Dense(5, Softmax)
+\end{itemize}
+
+\subsection*{Training Protocol}
+\begin{itemize}
+    \item Stratified split: 70\% train, 15\% validation, 15\% test.
+    \item Normalization using per-channel training-set mean/std (prevents leakage).
+    \item Adam optimizer with learning rate $1\times10^{-3}$.
+    \item Batch size: 64.
+    \item Early stopping enabled.
+\end{itemize}
+Separate models were trained for accelerometer, gyroscope, and magnetometer.
+
+\subsection*{Real-Time Coordination Protocol}
+
+\textbf{Base station $\rightarrow$ Microcontroller workflow:}
+\begin{enumerate}
+    \item User selects sensor mode (1/2/3).
+    \item Base station sends a serial command.
+    \item Firmware loads the appropriate model and normalization stats.
+    \item Next 100-sample window is read, normalized, and fed to the neural network.
+    \item Prediction and probabilities returned to base station.
+\end{enumerate}
+
+% ----------------------------------------------------
+\section*{D. Results}
+% ----------------------------------------------------
+
+\subsection*{Model Performance}
+\begin{itemize}
+    \item Test accuracy across sensors exceeded 80\%.
+    \item Most errors occurred in ``side'' vs ``unknown''.
+    \item Validation curves indicated stable convergence without overfitting.
+\end{itemize}
+
+\subsection*{Real-Time Performance}
+\begin{itemize}
+    \item Inference latency: $<150$\,ms per window.
+    \item Predictions matched offline performance in most cases.
+    \item Base station display showed stable probabilistic outputs for interpretability.
+\end{itemize}
+
+\subsection*{Visualization and Analysis}
+\begin{itemize}
+    \item Confusion matrices confirmed robustness.
+    \item Precision/recall for major posture classes $>0.80$.
+    \item ``Unknown'' class less accurate due to inherent ambiguity.
+\end{itemize}
+
+% ----------------------------------------------------
+\section*{E. Discussion}
+% ----------------------------------------------------
+
+\subsection*{Orientation and Sensor-Agnostic Robustness}
+The system reliably detects postures regardless of sensor orientation or modality. Windowing, strong normalization, and consistent labeling contributed significantly to robustness.
+
+\subsection*{Challenges and Limitations}
+\begin{itemize}
+    \item Microcontroller memory constraints limited model size.
+    \item Gathering diverse ambiguous data was challenging.
+    \item ``Side'' vs ``unknown'' classification remains difficult in extreme orientations.
+\end{itemize}
+
+\subsection*{Improvements and Future Work}
+\begin{itemize}
+    \item Increase dataset diversity with additional subjects and environments.
+    \item Use synthetic augmentation (rotation, jitter).
+    \item Use ensemble or attention-based models.
+    \item Add wireless communication (BLE).
+    \item Implement user-specific calibration.
+\end{itemize}
+
+\subsection*{Real-Time Experience}
+Real-time predictions were fast, stable, and user-friendly. Minor discrepancies reflected natural human posture variability.
+
+% ----------------------------------------------------
+\section*{References}
+% ----------------------------------------------------
+
+\begin{enumerate}[label={[\arabic*]}]
+    \item \label{ref1} TensorFlow/Keras Documentation; Arduino IMU Libraries.
+    \item \label{ref2} ASU Course Notes, IMU Feature Extraction Lectures.
+    \item \label{ref3} Project Codebase and Base Station Scripts.
+\end{enumerate}
+
+\end{document}
